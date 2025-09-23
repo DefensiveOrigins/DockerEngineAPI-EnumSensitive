@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import argparse
+import base64
 import json
 import sys
-import base64
 from pathlib import Path
 
 import requests
@@ -32,18 +32,30 @@ def get_engine_info(base_url: str, timeout: int = 10) -> dict:
 
 
 def get_secrets(base_url: str, timeout: int = 10):
-    """Return list of secrets (metadata)."""
+    """
+    Return (secrets_list, error_message).
+    If the Docker API returns an error (e.g., not a Swarm manager), we parse and return it.
+    """
     try:
         resp = requests.get(f"{base_url.rstrip('/')}/secrets", timeout=timeout)
-        resp.raise_for_status()
-        return resp.json()
+        if resp.status_code != 200:
+            # Try to extract { "message": "..." } or fall back to text
+            err = None
+            try:
+                j = resp.json()
+                err = j.get("message") or j
+            except Exception:
+                err = (resp.text or "").strip()
+            if not err:
+                err = f"HTTP {resp.status_code}"
+            return [], str(err)
+        return resp.json(), None
     except requests.RequestException as e:
-        print(f"[!] Failed to get secrets from {base_url}: {e}", file=sys.stderr)
-        return []
+        return [], f"Request failed: {e}"
 
 
 def get_secret_detail(base_url: str, secret_id: str, timeout: int = 10):
-    """Return secret detail (usually metadata only; value is not exposed by Docker API)."""
+    """Return secret detail (usually metadata only)."""
     try:
         resp = requests.get(f"{base_url.rstrip('/')}/secrets/{secret_id}", timeout=timeout)
         resp.raise_for_status()
@@ -54,32 +66,24 @@ def get_secret_detail(base_url: str, secret_id: str, timeout: int = 10):
 
 
 def maybe_decode_base64(val):
-    """Try to base64-decode a string; return (decoded_text, success_flag)."""
+    """Try to base64-decode a string; return (decoded_text_or_bytes, success_flag)."""
     if not isinstance(val, (bytes, str)):
         return None, False
-    if isinstance(val, str):
-        s = val.strip()
-        # base64 requires length multiple of 4; try padding
-        pad_len = (-len(s)) % 4
-        s_padded = s + ("=" * pad_len)
-        try:
-            raw = base64.b64decode(s_padded, validate=False)
-            try:
-                return raw.decode("utf-8", errors="replace"), True
-            except Exception:
-                return raw, True
-        except Exception:
-            return None, False
-    else:
-        # bytes; try to decode directly
-        try:
+    try:
+        if isinstance(val, str):
+            s = val.strip()
+            pad_len = (-len(s)) % 4
+            s = s + ("=" * pad_len)
+            raw = base64.b64decode(s, validate=False)
+        else:
             raw = base64.b64decode(val, validate=False)
-            try:
-                return raw.decode("utf-8", errors="replace"), True
-            except Exception:
-                return raw, True
-        except Exception:
-            return None, False
+    except Exception:
+        return None, False
+
+    try:
+        return raw.decode("utf-8", errors="replace"), True
+    except Exception:
+        return raw, True
 
 
 def parse_args():
@@ -126,11 +130,28 @@ def main():
     if args.show_info_json and engine_info:
         print(json.dumps(engine_info, indent=2))
 
-    # 2) Secrets enumeration
-    secrets = get_secrets(args.url, timeout=args.timeout)
+    # 2) Secrets enumeration (with error capture)
+    secrets, err = get_secrets(args.url, timeout=args.timeout)
+
+    results = {"engine_info": engine_info, "secrets": []}
+    if err:
+        # Mirror the Docker API error clearly for the user
+        print(f"[!] Failed to enumerate secrets: {err}", file=sys.stderr)
+        # Common hint for Swarm-related errors
+        if "swarm" in err.lower() and "manager" in err.lower():
+            print("Hint: Connect to a Swarm **manager** node to enumerate secrets.", file=sys.stderr)
+        # Save partial output if requested
+        if args.out:
+            try:
+                Path(args.out).write_text(json.dumps({**results, "error": err}, indent=2))
+                print(f"\nSaved results (with error) to {Path(args.out).resolve()}")
+            except Exception as e:
+                print(f"[!] Failed to write output file '{args.out}': {e}", file=sys.stderr)
+                return 2
+        return 0  # Exit gracefully; we surfaced the error
+
     if not secrets:
         print("No secrets found.")
-        results = {"engine_info": engine_info, "secrets": []}
         if args.out:
             try:
                 Path(args.out).write_text(json.dumps(results, indent=2))
@@ -141,29 +162,21 @@ def main():
         return 0
 
     print(f"Found {len(secrets)} secrets. Inspecting")
-    results = {"engine_info": engine_info, "secrets": []}
 
+    # 3) Inspect each secret (metadata; value usually unavailable)
+    from alive_progress import alive_bar  # local import to speed startup if not used
     with alive_bar(len(secrets), title="Investigating secrets") as bar:
         for s in secrets:
             secret_id = s.get("ID") or s.get("Id") or ""
             spec = s.get("Spec", {}) or {}
             name = spec.get("Name") or s.get("Name") or "(unnamed)"
 
-            # Fetch detail (usually metadata only)
             detail = get_secret_detail(args.url, secret_id, timeout=args.timeout) or {}
 
-            # Attempt to find a value-like field (non-standard)
-            decoded_text = None
-            value_found = False
-            if args.attempt-values:  # <-- hyphen not allowed in var name; fix below
-                pass
-            # ^ We'll fix in code block below.
-
-            # Print
             print(f"\nSecret Name: {name}")
             print(f"Secret ID: {secret_id}")
+
             if args.attempt_values:
-                # Look in a few plausible spots
                 raw_val = (
                     detail.get("Spec", {}).get("Data")
                     or detail.get("Spec", {}).get("Value")
@@ -171,33 +184,30 @@ def main():
                     or detail.get("Value")
                 )
                 if raw_val is not None:
-                    decoded_text, value_found = maybe_decode_base64(raw_val)
-                if value_found:
-                    # If bytes, show repr; if text, show text
-                    if isinstance(decoded_text, (bytes, bytearray)):
-                        print("Secret Value (decoded bytes):", decoded_text)
+                    decoded, ok = maybe_decode_base64(raw_val)
+                    if ok:
+                        if isinstance(decoded, (bytes, bytearray)):
+                            print("Secret Value (decoded bytes):", decoded)
+                        else:
+                            print("Secret Value (decoded):")
+                            for line in str(decoded).splitlines() or ["(empty)"]:
+                                print(f"  {line}")
+                        results["secrets"].append(
+                            {"id": secret_id, "name": name, "detail": detail, "decoded_value": decoded}
+                        )
                     else:
-                        print("Secret Value (decoded):")
-                        # indent multi-line for readability
-                        for line in str(decoded_text).splitlines() or ["(empty)"]:
-                            print(f"  {line}")
+                        print("Secret Value: (present but could not decode)")
+                        results["secrets"].append({"id": secret_id, "name": name, "detail": detail})
                 else:
-                    print("Secret Value: (not available via Docker API or could not decode)")
+                    print("Secret Value: (not available via Docker API)")
+                    results["secrets"].append({"id": secret_id, "name": name, "detail": detail})
             else:
                 print("Secret Value: (skipped; use --attempt-values to try extracting when available)")
-
-            results["secrets"].append(
-                {
-                    "id": secret_id,
-                    "name": name,
-                    "detail": detail,
-                    **({"decoded_value": decoded_text} if value_found else {}),
-                }
-            )
+                results["secrets"].append({"id": secret_id, "name": name, "detail": detail})
 
             bar()  # progress
 
-    # 3) Save if requested
+    # 4) Save if requested
     if args.out:
         try:
             out_path = Path(args.out)
