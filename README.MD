@@ -17,6 +17,10 @@ Can also save the results in structured JSON.
 ### EnumSecrets.py
 Enumerates Secrets from Docker Swarm mode, attempting to read their values if specified. Can also save the results in structured JSON.
 
+### EnumImages.py
+Inspects the contents of images for sensitive information such as tokens, keys, etc.
+
+
 ### Usage
 
 ##### Environment Variables Enumeration
