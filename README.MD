@@ -10,18 +10,14 @@ Use these scripts only against environments you are authorized to assess.
 
 ## Scripts
 
-### 1. `docker_envs.py`
+### EnumEnvVars.py`
 Enumerates running and stopped containers, extracts their **environment variables**, and prints them to the console.  
 Can also save the results in structured JSON.
 
-#### Features
-- Fetches `/info` for Docker Engine overview (version, OS, CPUs, memory, etc.).
-- Lists all containers (like `docker ps -a`).
-- Shows each container’s environment variables.
-- Displays a progress bar with [`alive-progress`](https://github.com/rsalmei/alive-progress).
-- Optionally saves results to a JSON file.
+### EnumSecrets.py
+Enumerates Secrets from Docker Swarm mode, attempting to read their values if specified. Can also save the results in structured JSON.
 
-#### Usage
+### Usage
 
 ##### Environment Variables Enumeration
 
