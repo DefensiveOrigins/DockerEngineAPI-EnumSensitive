@@ -140,7 +140,7 @@ def main():
                 return 2
         return 0
 
-    print(f"Found {len(secrets)} secrets. Inspecting…")
+    print(f"Found {len(secrets)} secrets. Inspecting")
     results = {"engine_info": engine_info, "secrets": []}
 
     with alive_bar(len(secrets), title="Investigating secrets") as bar:
