@@ -142,7 +142,7 @@ def main():
 
     results = {"engine_info": engine_info, "containers": []}
 
-    print(f"Found {len(containers)} containers. Inspecting…")
+    print(f"Found {len(containers)} containers. Inspecting")
     with alive_bar(len(containers), title="Investigating containers") as bar:
         for c in containers:
             container_id = c.get("Id", "") or ""
