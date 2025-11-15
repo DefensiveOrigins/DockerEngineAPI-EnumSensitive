@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "docker-enumsensitive"
-version = "0.1.6"
+version = "0.1.7"
 description = "Docker Engine HTTP API enumeration helpers for env vars, secrets, and images."
 requires-python = ">=3.8"
 dependencies = [ "requests", "alive-progress",]
