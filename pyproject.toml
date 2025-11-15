@@ -1,50 +1,25 @@
 [build-system]
-requires = ["setuptools>=64", "wheel"]
+requires = [ "setuptools>=64", "wheel",]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "docker-enumsensitive"
-version = "0.1.0"
+version = "0.1.4"
 description = "Docker Engine HTTP API enumeration helpers for env vars, secrets, and images."
-readme = { file = "README.MD", content-type = "text/markdown" }
-authors = [
-  { name = "Defensive Origins", email = "info@defensiveorigins.com" }
-]
-license = { text = "MIT" }  # adjust if you intend a different license
 requires-python = ">=3.8"
+dependencies = [ "requests", "alive-progress",]
+keywords = [ "docker", "security", "enumeration", "api", "pentest", "red-team",]
+classifiers = [ "Development Status :: 3 - Alpha", "Intended Audience :: Information Technology", "Intended Audience :: System Administrators", "Intended Audience :: Developers", "Topic :: Security", "Topic :: System :: Systems Administration", "License :: OSI Approved :: MIT License", "Programming Language :: Python", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3.8", "Programming Language :: Python :: 3.9", "Programming Language :: Python :: 3.10", "Programming Language :: Python :: 3.11", "Programming Language :: Python :: 3.12", "Environment :: Console", "Operating System :: OS Independent",]
+[[project.authors]]
+name = "Defensive Origins"
+email = "info@defensiveorigins.com"
 
-dependencies = [
-  "requests",
-  "alive-progress"
-]
+[project.readme]
+file = "README.MD"
+content-type = "text/markdown"
 
-keywords = [
-  "docker",
-  "security",
-  "enumeration",
-  "api",
-  "pentest",
-  "red-team"
-]
-
-classifiers = [
-  "Development Status :: 3 - Alpha",
-  "Intended Audience :: Information Technology",
-  "Intended Audience :: System Administrators",
-  "Intended Audience :: Developers",
-  "Topic :: Security",
-  "Topic :: System :: Systems Administration",
-  "License :: OSI Approved :: MIT License",
-  "Programming Language :: Python",
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Environment :: Console",
-  "Operating System :: OS Independent"
-]
+[project.license]
+text = "MIT"
 
 [project.urls]
 Homepage = "https://github.com/DefensiveOrigins/DockerEngineAPI-EnumSensitive"
@@ -57,4 +32,4 @@ docker-enum-secrets = "EnumSecrets:main"
 docker-enum-images = "EnumImages:main"
 
 [tool.setuptools]
-py-modules = ["EnumEnvVars", "EnumSecrets", "EnumImages"]
+py-modules = [ "EnumEnvVars", "EnumSecrets", "EnumImages",]
