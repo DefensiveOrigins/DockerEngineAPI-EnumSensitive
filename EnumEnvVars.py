@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 import requests
-from alive_progress import alive_bar
+from alive_progress import alive_bar  
 
 
 DEFAULT_URL = "http://localhost:2375"  # Docker Engine API (no auth; enable with care)
@@ -85,7 +85,7 @@ def parse_args():
 
 
 def print_engine_overview(info: dict):
-    """Pretty, concise overview of key /info fields."""
+    """Pretty, concise overview of key /info fields. """
     if not info:
         print("Engine Info: (unavailable)")
         return
