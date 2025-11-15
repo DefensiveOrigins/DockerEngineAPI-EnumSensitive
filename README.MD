@@ -13,7 +13,7 @@ pip install docker-enumsensitive
 ```
 From github:
 ```bash
-git cloneh ttps://github.com/DefensiveOrigins/DockerEngineAPI-EnumSensitive.git
+git clone https://github.com/DefensiveOrigins/DockerEngineAPI-EnumSensitive.git
 ```
 ---
 
